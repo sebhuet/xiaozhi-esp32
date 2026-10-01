@@ -35,6 +35,60 @@ As a voice interaction entry, the XiaoZhi AI chatbot leverages the AI capabiliti
 - Cloud-side MCP to extend large model capabilities (smart home control, PC desktop operation, knowledge search, email, etc.)
 - Customizable wake words, fonts, emojis, and chat backgrounds with online web-based editing ([Custom Assets Generator](https://github.com/78/xiaozhi-assets-generator))
 
+## Security and privacy audit (v2.5.0)
+
+Scope: reading of `main/ota.cc`, `main/application.cc`, `main/mcp_server.cc`, `main/protocols/`,
+`main/boards/common/board.cc` and `main/boards/common/wifi_board.cc`, plus the strings of a compiled
+`esp-vocat` build. No network capture was made, so this describes what the code does, not what a given
+server operator does with it.
+
+### What the device sends besides conversations
+
+As soon as Wi-Fi is up, the firmware calls the OTA URL (default `https://api.tenclass.net/xiaozhi/ota/`,
+changed with `CONFIG_OTA_URL` at build time or the NVS key `wifi:ota_url` at run time) with an HTTPS `POST`:
+
+| Where | Content |
+|---|---|
+| Header `Device-Id` | MAC address |
+| Header `Client-Id` | UUID generated once and stored in NVS |
+| Headers `User-Agent`, `Accept-Language`, `Activation-Version` | board name and version, UI language |
+| Header `Serial-Number` | only if the eFuse `USER_DATA` block holds a serial number |
+| Body, hardware | flash size, minimum free heap, chip model, revision, core count |
+| Body, application | name, version, compile time, ESP-IDF version, **SHA-256 of the binary** |
+| Body, layout | the complete partition table and the running OTA partition |
+| Body, display and board | display size, board type, name and manufacturer, MAC address |
+| Body, network | **Wi-Fi SSID, signal strength, channel and local IP address** (sent once connected) |
+
+The activation request carries an HMAC and the serial number if the eFuses hold them, and `{}` otherwise.
+The conversation connection sends the `Authorization` token, `Protocol-Version`, `Device-Id` and `Client-Id`,
+and the audio of the wake word at the start of a conversation (`CONFIG_SEND_WAKE_WORD_DATA`, enabled by
+default). The device clock comes from the `server_time` field of the OTA response; no NTP server is hard-coded.
+No other telemetry was found in the application code.
+
+### What the server can do to a device
+
+- **Install firmware, automatically.** The `firmware` object of the OTA response is acted on at boot:
+  `Application::CheckNewVersion` calls `UpgradeFirmware` whenever a newer version is announced, and
+  `"force": 1` installs any version. Nothing is signed or verified beyond the ESP-IDF image checks, and secure
+  boot is off by default.
+- **Install firmware through MCP.** The user-only tool `self.upgrade_firmware` does the same from a URL.
+- **Choose where the audio goes.** The `mqtt` and `websocket` sections of the OTA response are written to NVS
+  and select the conversation endpoint and its credentials.
+- **Replace assets.** The user-only tool `self.assets.set_download_url` makes the next boot download a new
+  assets partition (fonts, animations, the wake word model).
+- **Make the device fetch any URL.** A `notify` message carries an `audio_url` that the device downloads and plays.
+- **Make the device send its screen.** On LVGL boards, the user-only tool `self.screen.preview_image` downloads and
+  shows an image from a URL and, when `CONFIG_LV_USE_SNAPSHOT` is set, `self.screen.snapshot` uploads a screenshot of
+  the display to a URL. The `esp-vocat` build registers neither.
+- **Read the device state.** `self.get_device_status` returns volume, brightness, theme, battery, the Wi-Fi SSID
+  and signal strength, and the chip temperature; the user-only `self.get_system_info` returns the full body above.
+
+### Why it matters
+
+The OTA endpoint is a trust anchor. Whoever operates it receives the data above, can replace the firmware of
+every device that contacts it, and can point the audio of the device at another server. Running your own
+server is the only way to keep all of this in your hands.
+
 ## Hardware
 
 ### Breadboard DIY Practice
