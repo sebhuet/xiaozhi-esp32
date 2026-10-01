@@ -535,14 +535,9 @@ void Application::InitializeProtocol() {
 
     display->SetStatus(Lang::Strings::LOADING_PROTOCOL);
 
-    if (ota_->HasMqttConfig()) {
-        protocol_ = std::make_unique<MqttProtocol>();
-    } else if (ota_->HasWebsocketConfig()) {
-        protocol_ = std::make_unique<WebsocketProtocol>();
-    } else {
-        ESP_LOGW(TAG, "No protocol specified in the OTA config, using MQTT");
-        protocol_ = std::make_unique<MqttProtocol>();
-    }
+    // Privacy hardening: conversations use the locally configured WebSocket endpoint only. An MQTT
+    // configuration could only come from a server, and servers no longer choose the endpoint.
+    protocol_ = std::make_unique<WebsocketProtocol>();
 
     protocol_->OnConnected([this]() { DismissAlert(); });
 

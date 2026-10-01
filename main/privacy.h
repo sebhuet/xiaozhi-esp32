@@ -32,6 +32,10 @@ inline constexpr const char* kCompileTime = "2025-01-01T00:00:00Z";
 inline constexpr const char* kElfSha256 =
     "0000000000000000000000000000000000000000000000000000000000000000";
 
+// OTA server contacted by default. Empty: no OTA request is made at all, so nothing is sent and nothing is
+// received. To enable it, store the URL of your own server in the NVS key `wifi:ota_url`.
+inline constexpr const char* kDefaultOtaUrl = "";
+
 // Set to true only to restore the upstream behaviour of installing firmware chosen by a server.
 inline constexpr bool kAllowRemoteFirmwareUpdate = false;
 

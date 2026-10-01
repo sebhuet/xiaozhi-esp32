@@ -48,7 +48,7 @@ std::string Ota::GetCheckVersionUrl() {
     Settings settings("wifi", false);
     std::string url = settings.GetString("ota_url");
     if (url.empty()) {
-        url = CONFIG_OTA_URL;
+        url = privacy::kDefaultOtaUrl;
     }
     return url;
 }
@@ -84,6 +84,18 @@ NetworkResult<> Ota::CheckVersion() {
     ESP_LOGI(TAG, "Current version: %s", current_version_.c_str());
 
     std::string url = GetCheckVersionUrl();
+    if (url.empty()) {
+        // Privacy hardening: with no OTA server configured, nothing is sent and nothing is received. The
+        // conversation endpoint is the one stored locally (NVS namespace "websocket", see below).
+        ESP_LOGI(TAG, "OTA check skipped: no OTA URL configured (NVS key wifi:ota_url)");
+        has_new_version_ = false;
+        has_activation_code_ = false;
+        has_activation_challenge_ = false;
+        has_server_time_ = false;
+        has_mqtt_config_ = false;
+        has_websocket_config_ = !Settings("websocket", false).GetString("url").empty();
+        return {};
+    }
     if (url.length() < 10) {
         ESP_LOGE(TAG, "Check version URL is not properly set");
         return std::unexpected(NetworkError::InvalidArgument());
@@ -147,47 +159,15 @@ NetworkResult<> Ota::CheckVersion() {
         }
     }
 
+    // Privacy hardening: the conversation endpoint is never taken from a server. The `mqtt` and `websocket`
+    // sections of the response are ignored; the endpoint is the one stored locally by the device owner in the
+    // NVS namespace "websocket" (keys url, token, version).
     has_mqtt_config_ = false;
-    cJSON *mqtt = cJSON_GetObjectItem(root, "mqtt");
-    if (cJSON_IsObject(mqtt)) {
-        Settings settings("mqtt", true);
-        cJSON *item = NULL;
-        cJSON_ArrayForEach(item, mqtt) {
-            if (cJSON_IsString(item)) {
-                if (settings.GetString(item->string) != item->valuestring) {
-                    settings.SetString(item->string, item->valuestring);
-                }
-            } else if (cJSON_IsNumber(item)) {
-                if (settings.GetInt(item->string) != item->valueint) {
-                    settings.SetInt(item->string, item->valueint);
-                }
-            }
-        }
-        has_mqtt_config_ = true;
-    } else {
-        ESP_LOGI(TAG, "No mqtt section found !");
+    if (cJSON_IsObject(cJSON_GetObjectItem(root, "mqtt")) ||
+        cJSON_IsObject(cJSON_GetObjectItem(root, "websocket"))) {
+        ESP_LOGW(TAG, "Conversation endpoint sent by the server ignored");
     }
-
-    has_websocket_config_ = false;
-    cJSON *websocket = cJSON_GetObjectItem(root, "websocket");
-    if (cJSON_IsObject(websocket)) {
-        Settings settings("websocket", true);
-        cJSON *item = NULL;
-        cJSON_ArrayForEach(item, websocket) {
-            if (cJSON_IsString(item)) {
-                if (settings.GetString(item->string) != item->valuestring) {
-                    settings.SetString(item->string, item->valuestring);
-                }
-            } else if (cJSON_IsNumber(item)) {
-                if (settings.GetInt(item->string) != item->valueint) {
-                    settings.SetInt(item->string, item->valueint);
-                }
-            }
-        }
-        has_websocket_config_ = true;
-    } else {
-        ESP_LOGI(TAG, "No websocket section found!");
-    }
+    has_websocket_config_ = !Settings("websocket", false).GetString("url").empty();
 
     has_server_time_ = false;
     cJSON *server_time = cJSON_GetObjectItem(root, "server_time");

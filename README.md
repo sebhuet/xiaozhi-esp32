@@ -101,17 +101,23 @@ server is the only way to keep all of this in your hands.
   `Application::UpgradeFirmware`, the single path used by the OTA response and by MCP, and in `Ota::StartUpgrade`.
   Flash over USB instead.
 - The MCP tools `self.upgrade_firmware` and `self.assets.set_download_url` are no longer registered.
+- No OTA request is made by default (`kDefaultOtaUrl` is empty, `CONFIG_OTA_URL` is no longer used): nothing is sent and
+  nothing is received. To enable it, store the URL of your own server in the NVS key `wifi:ota_url`.
+- The conversation endpoint is never taken from a server: the `mqtt` and `websocket` sections of an OTA response are
+  ignored, MQTT is no longer selected, and the WebSocket endpoint is the one stored locally in the NVS namespace
+  `websocket` (keys `url`, `token`, `version`).
+- `CONFIG_SEND_WAKE_WORD_DATA` now defaults to `n`: the audio of the wake word is not sent.
 - Still real because functional: volume, brightness, theme, battery level, chip temperature, application name and version.
 
 ### What the mitigations do not cover
 
-- The OTA server still selects the conversation endpoint (the `mqtt` and `websocket` sections of its response), so an
-  untrusted OTA server still receives the audio. Run your own server.
-- The default OTA URL is unchanged: the device still contacts it, and that server still sees your public IP address.
-- The wake word audio is still sent at the start of a conversation (`CONFIG_SEND_WAKE_WORD_DATA`).
-- `notify` messages can still make the device fetch a URL.
+- Whatever you say in a conversation reaches the conversation server you configured, and the connection itself
+  discloses the public IP address of your network to it.
+- `notify` messages sent by that server can still make the device fetch a URL.
 - Network metadata (IP address, DNS, TLS fingerprint, timing) cannot be hidden by the firmware, and identical constants
   are themselves a recognisable signature.
+- Without an OTA response the device has no clock source: a `wss://` endpoint needs a valid time to verify its
+  certificate, so use `ws://` on a trusted network or provide the time another way.
 - Secure boot and flash encryption are not enabled.
 - Only the Wi-Fi board classes were patched: the 4G (ML307) and RNDIS boards still report their own identifiers.
 
