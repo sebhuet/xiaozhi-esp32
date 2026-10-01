@@ -1,4 +1,5 @@
 #include "ota.h"
+#include "privacy.h"
 #include "system_info.h"
 #include "settings.h"
 #include "assets/lang_config.h"
@@ -396,6 +397,11 @@ bool Ota::Upgrade(const std::string& firmware_url, std::function<void(int progre
 }
 
 bool Ota::StartUpgrade(std::function<void(int progress, size_t speed)> callback) {
+    // Privacy hardening: second barrier, the installer itself refuses (see privacy.h).
+    if (!privacy::kAllowRemoteFirmwareUpdate) {
+        ESP_LOGW(TAG, "Remote firmware update refused");
+        return false;
+    }
     return Upgrade(firmware_url_, callback);
 }
 

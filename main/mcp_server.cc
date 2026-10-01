@@ -141,26 +141,8 @@ void McpServer::AddUserOnlyTools() {
                     });
 
     // Firmware upgrade
-    AddUserOnlyTool(
-        "self.upgrade_firmware",
-        "Upgrade firmware from a specific URL. This will download and install the firmware, then "
-        "reboot the device.",
-        PropertyList({Property("url", kPropertyTypeString,
-                               "The URL of the firmware binary file to download and install")}),
-        [this](const PropertyList& properties) -> ReturnValue {
-            auto url = properties["url"].value<std::string>();
-            ESP_LOGI(TAG, "User requested firmware upgrade from URL: %s", url.c_str());
-
-            auto& app = Application::GetInstance();
-            app.Schedule([url, &app]() {
-                bool success = app.UpgradeFirmware(url);
-                if (!success) {
-                    ESP_LOGE(TAG, "Firmware upgrade failed");
-                }
-            });
-
-            return true;
-        });
+    // Privacy hardening: `self.upgrade_firmware` is not registered. A server cannot install firmware
+    // through MCP (UpgradeFirmware also refuses it, see privacy.h).
 
     // Display control
 #ifdef HAVE_LVGL
@@ -290,16 +272,8 @@ void McpServer::AddUserOnlyTools() {
     }
 #endif  // HAVE_LVGL
 
-    // Assets download url (always registered — Settings storage works regardless of partition
-    // layout)
-    AddUserOnlyTool("self.assets.set_download_url", "Set the download url for the assets",
-                    PropertyList({Property("url", kPropertyTypeString)}),
-                    [](const PropertyList& properties) -> ReturnValue {
-                        auto url = properties["url"].value<std::string>();
-                        Settings settings("assets", true);
-                        settings.SetString("download_url", url);
-                        return true;
-                    });
+    // Privacy hardening: `self.assets.set_download_url` is not registered. A server cannot make the
+    // device download a new assets partition.
 }
 
 void McpServer::AddTool(std::unique_ptr<McpTool> tool) {

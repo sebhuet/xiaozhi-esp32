@@ -117,11 +117,11 @@ These tools are hidden by default. The backend must pass `withUserTools=true` to
 |------|-------------|
 | `self.get_system_info` | Return a JSON blob describing the system. |
 | `self.reboot` | Reboot the device after a short delay. |
-| `self.upgrade_firmware` | Download firmware from `url` and install it, then reboot. |
+| ~~`self.upgrade_firmware`~~ | Removed in this fork: firmware is never installed on a server's request. |
 | `self.screen.get_info` | Return the current screen width, height, and whether it is monochrome (LVGL boards only). |
 | `self.screen.snapshot` | Snapshot the screen as JPEG and upload it to `url` (LVGL boards, when `CONFIG_LV_USE_SNAPSHOT=y`). |
 | `self.screen.preview_image` | Download and display an image from `url` on the screen. |
-| `self.assets.set_download_url` | Set the download URL for the assets partition. |
+| ~~`self.assets.set_download_url`~~ | Removed in this fork: a server cannot replace the assets partition. |
 
 ## JSON-RPC Examples
 

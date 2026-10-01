@@ -1,4 +1,5 @@
 #include "system_info.h"
+#include "privacy.h"
 
 #include <freertos/task.h>
 #include <esp_log.h>
@@ -33,17 +34,8 @@ size_t SystemInfo::GetFreeHeapSize() {
 }
 
 std::string SystemInfo::GetMacAddress() {
-    uint8_t mac[6];
-#if CONFIG_XIAOZHI_NETWORK_ETHERNET
-    esp_read_mac(mac, ESP_MAC_ETH);
-#elif CONFIG_IDF_TARGET_ESP32P4
-    esp_wifi_get_mac(WIFI_IF_STA, mac);
-#else
-    esp_read_mac(mac, ESP_MAC_WIFI_STA);
-#endif
-    char mac_str[18];
-    snprintf(mac_str, sizeof(mac_str), "%02x:%02x:%02x:%02x:%02x:%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-    return std::string(mac_str);
+    // Privacy hardening: servers never see the real MAC address (see privacy.h).
+    return std::string(privacy::kMacAddress);
 }
 
 std::string SystemInfo::GetChipModelName() {

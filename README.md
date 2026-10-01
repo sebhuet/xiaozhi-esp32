@@ -2,6 +2,9 @@
 
 (English | [中文](README_zh.md) | [日本語](README_ja.md))
 
+> **Fork notice.** This fork (branch `xingmiao`) hardens the firmware's privacy: it reports constant fictitious
+> device data and refuses remote firmware updates. See [Security and privacy audit](#security-and-privacy-audit-v250).
+
 ## Introduction
 
 👉 [Human: Give AI a camera vs AI: Instantly finds out the owner hasn't washed hair for three days【bilibili】](https://www.bilibili.com/video/BV1bpjgzKEhd/)
@@ -88,6 +91,29 @@ No other telemetry was found in the application code.
 The OTA endpoint is a trust anchor. Whoever operates it receives the data above, can replace the firmware of
 every device that contacts it, and can point the audio of the device at another server. Running your own
 server is the only way to keep all of this in your hands.
+
+### Mitigations in this fork (branch `xingmiao`)
+
+- `main/privacy.h` holds constant, fictitious values that replace the MAC address, the UUID, the Wi-Fi SSID, signal,
+  channel and IP address, the SHA-256 of the binary, the compile time, the partition table and the chip revision in
+  every request, header and MCP result. They are identical for every device.
+- Firmware updates chosen by a server are refused (`kAllowRemoteFirmwareUpdate = false`), both in
+  `Application::UpgradeFirmware`, the single path used by the OTA response and by MCP, and in `Ota::StartUpgrade`.
+  Flash over USB instead.
+- The MCP tools `self.upgrade_firmware` and `self.assets.set_download_url` are no longer registered.
+- Still real because functional: volume, brightness, theme, battery level, chip temperature, application name and version.
+
+### What the mitigations do not cover
+
+- The OTA server still selects the conversation endpoint (the `mqtt` and `websocket` sections of its response), so an
+  untrusted OTA server still receives the audio. Run your own server.
+- The default OTA URL is unchanged: the device still contacts it, and that server still sees your public IP address.
+- The wake word audio is still sent at the start of a conversation (`CONFIG_SEND_WAKE_WORD_DATA`).
+- `notify` messages can still make the device fetch a URL.
+- Network metadata (IP address, DNS, TLS fingerprint, timing) cannot be hidden by the firmware, and identical constants
+  are themselves a recognisable signature.
+- Secure boot and flash encryption are not enabled.
+- Only the Wi-Fi board classes were patched: the 4G (ML307) and RNDIS boards still report their own identifiers.
 
 ## Hardware
 

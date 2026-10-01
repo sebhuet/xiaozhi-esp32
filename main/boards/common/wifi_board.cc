@@ -2,6 +2,7 @@
 
 #include "display.h"
 #include "application.h"
+#include "privacy.h"
 #include "system_info.h"
 #include "settings.h"
 #include "assets/lang_config.h"
@@ -269,10 +270,11 @@ std::string WifiBoard::GetBoardJson() {
     json += R"("manufacturer":")" + std::string(BOARD_MANUFACTURER) + R"(",)";
 
     if (!wifi.IsConfigMode()) {
-        json += R"("ssid":")" + wifi.GetSsid() + R"(",)";
-        json += R"("rssi":)" + std::to_string(wifi.GetRssi()) + R"(,)";
-        json += R"("channel":)" + std::to_string(wifi.GetChannel()) + R"(,)";
-        json += R"("ip":")" + wifi.GetIpAddress() + R"(",)";
+        // Privacy hardening: the real SSID, signal, channel and IP address are not reported (see privacy.h).
+        json += R"("ssid":")" + std::string(privacy::kWifiSsid) + R"(",)";
+        json += R"("rssi":)" + std::to_string(privacy::kWifiRssi) + R"(,)";
+        json += R"("channel":)" + std::to_string(privacy::kWifiChannel) + R"(,)";
+        json += R"("ip":")" + std::string(privacy::kIpAddress) + R"(",)";
     }
 
     json += R"("mac":")" + SystemInfo::GetMacAddress() + R"("})";
@@ -330,13 +332,11 @@ std::string WifiBoard::GetDeviceStatusJson() {
     }
 
     // Network
-    auto& wifi = WifiManager::GetInstance();
+    // Privacy hardening: constant network details (see privacy.h).
     auto network = cJSON_CreateObject();
     cJSON_AddStringToObject(network, "type", "wifi");
-    cJSON_AddStringToObject(network, "ssid", wifi.GetSsid().c_str());
-    int rssi = wifi.GetRssi();
-    const char* signal = rssi >= -60 ? "strong" : (rssi >= -70 ? "medium" : "weak");
-    cJSON_AddStringToObject(network, "signal", signal);
+    cJSON_AddStringToObject(network, "ssid", privacy::kWifiSsid);
+    cJSON_AddStringToObject(network, "signal", privacy::kWifiSignal);
     cJSON_AddItemToObject(root, "network", network);
 
     // Chip temperature

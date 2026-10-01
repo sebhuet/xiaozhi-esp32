@@ -3,6 +3,7 @@
 #include "assets/lang_config.h"
 #include "audio_codec.h"
 #include "board.h"
+#include "privacy.h"
 #include "display.h"
 #include "mcp_server.h"
 #include "mqtt_protocol.h"
@@ -1201,6 +1202,14 @@ void Application::Reboot() {
 }
 
 bool Application::UpgradeFirmware(const std::string& url, const std::string& version) {
+    // Privacy hardening: remote firmware updates are refused, whether they come from the OTA response
+    // (even with "force") or from MCP. Flash through USB instead (see privacy.h).
+    if (!privacy::kAllowRemoteFirmwareUpdate) {
+        ESP_LOGW(TAG, "Remote firmware update refused (announced version: %s)",
+                 version.empty() ? "unknown" : version.c_str());
+        return false;
+    }
+
     auto& board = Board::GetInstance();
     auto display = board.GetDisplay();
 
